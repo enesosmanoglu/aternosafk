@@ -148,21 +148,29 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
     bot.on('spawn', function () {
         bot.movement.default = new Movements(bot, bot.data);
         bot.movement.moveNear = (x, y, z, range = 1) => {
-            if (!y || !z) {
-                if (y) {
-                    range = y;
+            try {
+                if (!y || !z) {
+                    if (y) {
+                        range = y;
+                    }
+                    z = x.position.z;
+                    y = x.position.y;
+                    x = x.position.x;
                 }
-                z = x.position.z;
-                y = x.position.y;
-                x = x.position.x;
+                bot.pathfinder.setMovements(bot.movement.default);
+                bot.pathfinder.setGoal(new GoalNear(x, y, z, range));
+            } catch (error) {
+                console.log(error.message)
             }
-            bot.pathfinder.setMovements(bot.movement.default);
-            bot.pathfinder.setGoal(new GoalNear(x, y, z, range));
         }
         bot.movement.moveToBlock = (block) => {
-            let { x, y, z } = block.position;
-            bot.pathfinder.setMovements(bot.movement.default);
-            bot.pathfinder.setGoal(new GoalGetToBlock(x, y, z), true);
+            try {
+                let { x, y, z } = block.position;
+                bot.pathfinder.setMovements(bot.movement.default);
+                bot.pathfinder.setGoal(new GoalGetToBlock(x, y, z), true);
+            } catch (error) {
+                console.log(error.message)
+            }
         }
         bot.log('[SPAWN]');
         bot.states.connected = true;
