@@ -28,7 +28,7 @@ if (!data.hosts.length)
     return console.error("Couldn't found host(s) to connect. Please add host(s) to config!")
 
 for (let i = 0; i < data.hosts.length; i++) {
-    const host = data.hosts[i];
+    let host = data.hosts[i];
     if (!host.includes('.')) {
         host += ".aternos.me"
     }
