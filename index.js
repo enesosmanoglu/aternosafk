@@ -29,6 +29,10 @@ if (!data.hosts.length)
 
 for (let i = 0; i < data.hosts.length; i++) {
     const host = data.hosts[i];
+    if (!host.includes('.')) {
+        host += ".aternos.me"
+    }
+
     if (host.includes(':')) {
         let hostData = host.split(':')
         createBot(hostData[0], hostData[1])
@@ -38,85 +42,99 @@ for (let i = 0; i < data.hosts.length; i++) {
 }
 
 function createBot(host = data.hosts[0], port = 25565, options = { host, port, username: data.username }, bot = mineflayer.createBot(options)) {
-    bot.log = function () {
-        console.log(`[${options.host}:${options.port}] ${Object.values(arguments).join(' ')}`)
+    bot.options = options;
+    bot.log = () => console.log(`[${options.host}:${options.port}]`, ...Object.values(arguments));
+    bot.reconnect = () => {
+        bot.quit();
+        bot.end();
+        bot.log(`Reconnecting in ${data.reconnect_wait_seconds} secs.`);
+        setTimeout(() => createBot(host, port, options), data.reconnect_wait_seconds * 1000);
+    }
+    bot.states = {
+        lasttime: -1,
+        moving: false,
+        connected: false,
+        lastAction: null,
     }
 
-    let lasttime = -1;
-    let moving = 0;
-    let connected = 0;
-    let lastAction;
-
-    bot.loadPlugin(cmd)
+    bot.loadPlugin(cmd);
 
     bot.on('login', function () {
-        bot.log(`Logged in with '${options.username}'`)
+        bot.log(`Logged in with '${options.username}'`);
         //bot.chat("hello");
     });
 
-    bot.on('time', function (time) {
-        if (data.auto_night_skip == "true") {
+    bot.on('time', function () {
+        if (!bot.states.connected)
+            return;
+
+        if (data.auto_night_skip) {
             if (bot.time.timeOfDay >= 13000) {
-                bot.chat('/time set day')
+                bot.chat('/time set day');
             }
         }
-        if (connected < 1) {
-            return;
-        }
-        if (lasttime < 0) {
-            lasttime = bot.time.age;
+
+        if (bot.states.lasttime < 0) {
+            bot.states.lasttime = bot.time.age;
         } else {
             let randomadd = Math.random() * maxRandom * 20;
             let interval = moveInterval * 20 + randomadd;
-            if (bot.time.age - lasttime > interval) {
-                if (moving == 1) {
-                    bot.setControlState(lastAction, false);
-                    moving = 0;
-                    lasttime = bot.time.age;
+            if (bot.time.age - bot.states.lasttime > interval) {
+                if (bot.states.moving) {
+                    bot.setControlState(bot.states.lastAction, false);
+                    bot.states.moving = false;
                 } else {
                     let yaw = Math.random() * pi - (0.5 * pi);
                     let pitch = Math.random() * pi - (0.5 * pi);
                     bot.look(yaw, pitch, false);
-                    lastAction = actions[Math.floor(Math.random() * actions.length)];
-                    bot.setControlState(lastAction, true);
-                    moving = 1;
-                    lasttime = bot.time.age;
+                    bot.states.lastAction = actions[Math.floor(Math.random() * actions.length)];
+                    bot.setControlState(bot.states.lastAction, true);
+                    bot.states.moving = true;
                     bot.activateItem();
                 }
+                bot.states.lasttime = bot.time.age;
             }
         }
     });
 
     bot.on('spawn', function () {
-        connected = 1;
+        bot.log('[SPAWN]');
+        bot.states.connected = true;
     });
 
     bot.on('death', function () {
-        bot.emit("respawn")
+        bot.log('[DEATH]');
+        bot.emit("respawn");
     });
 
     bot.on('kicked', function (reason, loggedIn) {
         try {
             reason = JSON.parse(reason.replace(/\n/g, " ")).text
         } catch (error) {
-            console.log(error)
+            //console.log(error)
         }
-        bot.log("[KICKED]", reason)
-        bot.log("[LOGGEDIN]", loggedIn)
-        bot.quit()
-        bot.end()
-        bot.log('Reconnecting in 10 secs.')
-        setTimeout(() => {
-            createBot(host, port, options)
-        }, 10000);
+        bot.log("");
+        if (reason.includes("This server is offline")) {
+            bot.log("Server is currently offline. Please start server firstly!");
+            if (reason.includes('.aternos.me'))
+                bot.log("https://aternos.org/server/")
+        } else if (reason.includes("Server not found")) {
+            bot.log("Server not found! Be sure that you typed correctly.");
+            if (reason.includes('.aternos.me'))
+                bot.log("https://aternos.org/server/")
+        } else {
+            bot.log("[KICKED]", reason);
+            bot.log("[WAS LOGIN BEFORE KICKING?]", loggedIn);
+        }
+        bot.log("");
     });
+
     bot.on('error', function (err) {
-        bot.log("[ERROR]", err.message)
-        bot.quit()
-        bot.end()
-        bot.log('Reconnecting in 10 secs.')
-        setTimeout(() => {
-            createBot(host, port, options)
-        }, 10000);
+        bot.log("[ERROR]", err.message);
     });
+
+    bot.on('end', () => {
+        bot.states.connected = false;
+        bot.reconnect();
+    })
 }
