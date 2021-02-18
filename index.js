@@ -71,3 +71,9 @@ bot.on('death', function () {
     bot.emit("respawn")
 });
 
+bot.on('kicked', function () {
+    process.exit()
+});
+bot.on('error', function () {
+    process.exit()
+});
