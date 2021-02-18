@@ -43,7 +43,7 @@ for (let i = 0; i < data.hosts.length; i++) {
 
 function createBot(host = data.hosts[0], port = 25565, options = { host, port, username: data.username }, bot = mineflayer.createBot(options)) {
     bot.options = options;
-    bot.log = () => console.log(`[${options.host}:${options.port}]`, ...Object.values(arguments));
+    bot.log = function () { console.log(`[${host}:${port}]`, ...Object.values(arguments)); }
     bot.reconnect = () => {
         bot.quit();
         bot.end();
@@ -60,7 +60,7 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
     bot.loadPlugin(cmd);
 
     bot.on('login', function () {
-        bot.log(`Logged in with '${options.username}'`);
+        bot.log(`Logged in with username '${options.username}'`);
         //bot.chat("hello");
     });
 
