@@ -90,7 +90,7 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
         delete bot.time.bigAge;
         delete bot.time.bigTime;
         bot.time.tps = bot.time.age - bot.time.ageBefore || 20;
-        console.log(JSON.stringify(bot.time));
+        //console.log(JSON.stringify(bot.time));
 
         if (bot.time.timeOfDay >= 13000 && !bot.isSleeping) {
             if (data.auto_night_skip) {
@@ -160,7 +160,7 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
                 bot.pathfinder.setMovements(bot.movement.default);
                 bot.pathfinder.setGoal(new GoalNear(x, y, z, range));
             } catch (error) {
-                console.log(error.message)
+                //console.log(error.message)
             }
         }
         bot.movement.moveToBlock = (block) => {
@@ -169,7 +169,7 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
                 bot.pathfinder.setMovements(bot.movement.default);
                 bot.pathfinder.setGoal(new GoalGetToBlock(x, y, z), true);
             } catch (error) {
-                console.log(error.message)
+                //console.log(error.message)
             }
         }
         bot.log('[SPAWN]');
