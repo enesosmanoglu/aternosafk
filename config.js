@@ -1,6 +1,5 @@
 module.exports = {
-    host: "huzunlumumya.aternos.me",
-    port: 25565,
-    username: "galip",
-    auto_night_skip: false,
+    hosts: process.env.hosts || [],
+    username: process.env.username || "zosman",
+    auto_night_skip: process.env.auto_night_skip || false,
 }
