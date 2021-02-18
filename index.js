@@ -1,12 +1,29 @@
-const mineflayer = require('mineflayer')
-const cmd = require('mineflayer-cmd').plugin
+const mineflayer = require('mineflayer');
+const initMcData = require('minecraft-data');
+const pathfinder = require('mineflayer-pathfinder').pathfinder
+const Movements = require('mineflayer-pathfinder').Movements
+const { GoalNear, GoalGetToBlock } = require('mineflayer-pathfinder').goals
 let data = require('./config');
 
-let actions = ['forward', 'back', 'left', 'right']
-
-let pi = Math.PI;
-let moveInterval = 2; // 2 second movement interval
-let maxRandom = 5; // 0-5 seconds added to movement interval (randomly)
+let actions = ['forward', 'back', 'left', 'right'];
+let bedTypes = [
+    'white_bed',
+    'orange_bed',
+    'magenta_bed',
+    'light_blue_bed',
+    'yellow_bed',
+    'lime_bed',
+    'pink_bed',
+    'gray_bed',
+    'light_gray_bed',
+    'cyan_bed',
+    'purple_bed',
+    'blue_bed',
+    'brown_bed',
+    'green_bed',
+    'red_bed',
+    'black_bed',
+];
 
 if (typeof data.hosts === "string") {
     try {
@@ -41,7 +58,9 @@ for (let i = 0; i < data.hosts.length; i++) {
     }
 }
 
-function createBot(host = data.hosts[0], port = 25565, options = { host, port, username: data.username }, bot = mineflayer.createBot(options)) {
+function createBot(host = data.hosts[0], port = 25565, options = { host, port, username: data.username, hideErrors: false }, bot = mineflayer.createBot(options)) {
+    bot.loadPlugin(pathfinder);
+    bot.movement = {};
     bot.options = options;
     bot.log = function () { console.log(`[${host}:${port}]`, ...Object.values(arguments)); }
     bot.reconnect = () => {
@@ -51,15 +70,14 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
         setTimeout(() => createBot(host, port, options), data.reconnect_wait_seconds * 1000);
     }
     bot.states = {
-        lasttime: -1,
+        lastTime: -1,
         moving: false,
         connected: false,
         lastAction: null,
     }
 
-    bot.loadPlugin(cmd);
-
     bot.on('login', function () {
+        bot.data = initMcData(bot.version);
         bot.log(`Logged in with username '${options.username}'`);
         //bot.chat("hello");
     });
@@ -68,36 +86,85 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
         if (!bot.states.connected)
             return;
 
-        if (data.auto_night_skip) {
-            if (bot.time.timeOfDay >= 13000) {
-                bot.chat('/time set day');
+        // Adding tps to bot time & removing bigInts
+        delete bot.time.bigAge;
+        delete bot.time.bigTime;
+        bot.time.tps = bot.time.age - bot.time.ageBefore || 20;
+        console.log(JSON.stringify(bot.time));
+
+        if (bot.time.timeOfDay >= 13000 && !bot.isSleeping) {
+            if (data.auto_night_skip) {
+                bot.chat('/time add 11000');
+            } else if (data.auto_sleep) {
+                let bedBlocks = bot.findBlocks({
+                    matching: bedTypes.map(bedName => bot.data.blocksByName[bedName].id),
+                    count: 10,
+                }).map(vec3 => bot.blockAt(vec3))
+
+                goToBed();
+                function goToBed(i = 0) {
+                    const bedBlock = bedBlocks[i];
+                    bot.movement.moveNear(bedBlock, 2);
+                    const goal_reached = async () => {
+                        bot.removeListener('goal_reached', goal_reached);
+                        try {
+                            await bot.sleep(bedBlock);
+                        } catch (error) {
+                            bot.log(error.message);
+                            if (error.message.includes('Server rejected transaction'))
+                                return bot.reconnect();
+                            if (i != bedBlocks.length - 1)
+                                goToBed(++i);
+                        }
+                    };
+                    bot.on('goal_reached', goal_reached)
+                }
+
+            }
+        }
+        if (bot.isSleeping)
+            return
+
+        if (bot.states.lastTime < 0) {
+            bot.states.lastTime = bot.time.age;
+        } else {
+            let interval = (data.move_for_seconds_min + Math.random() * (data.move_for_seconds_max - data.move_for_seconds_min)) * bot.time.tps;
+            if (bot.time.age - bot.states.lastTime > interval) {
+                if (!bot.states.moving) {
+                    let yaw = (Math.random() - 0.5) * Math.PI;
+                    let pitch = (Math.random() - 0.5) * Math.PI;
+                    bot.look(yaw, pitch, false);
+
+                    bot.states.lastAction = actions[~~(Math.random() * actions.length)];
+                }
+                bot.states.moving = !bot.states.moving;
+                bot.setControlState(bot.states.lastAction, bot.states.moving);
+                bot.states.lastTime = bot.time.age;
             }
         }
 
-        if (bot.states.lasttime < 0) {
-            bot.states.lasttime = bot.time.age;
-        } else {
-            let randomadd = Math.random() * maxRandom * 20;
-            let interval = moveInterval * 20 + randomadd;
-            if (bot.time.age - bot.states.lasttime > interval) {
-                if (bot.states.moving) {
-                    bot.setControlState(bot.states.lastAction, false);
-                    bot.states.moving = false;
-                } else {
-                    let yaw = Math.random() * pi - (0.5 * pi);
-                    let pitch = Math.random() * pi - (0.5 * pi);
-                    bot.look(yaw, pitch, false);
-                    bot.states.lastAction = actions[Math.floor(Math.random() * actions.length)];
-                    bot.setControlState(bot.states.lastAction, true);
-                    bot.states.moving = true;
-                    bot.activateItem();
-                }
-                bot.states.lasttime = bot.time.age;
-            }
-        }
+        bot.time.ageBefore = bot.time.age;
     });
 
     bot.on('spawn', function () {
+        bot.movement.default = new Movements(bot, bot.data);
+        bot.movement.moveNear = (x, y, z, range = 1) => {
+            if (!y || !z) {
+                if (y) {
+                    range = y;
+                }
+                z = x.position.z;
+                y = x.position.y;
+                x = x.position.x;
+            }
+            bot.pathfinder.setMovements(bot.movement.default);
+            bot.pathfinder.setGoal(new GoalNear(x, y, z, range));
+        }
+        bot.movement.moveToBlock = (block) => {
+            let { x, y, z } = block.position;
+            bot.pathfinder.setMovements(bot.movement.default);
+            bot.pathfinder.setGoal(new GoalGetToBlock(x, y, z), true);
+        }
         bot.log('[SPAWN]');
         bot.states.connected = true;
     });

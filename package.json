@@ -1,6 +1,6 @@
 {
-  "name": "aternosafk",
-  "version": "1.0.0",
+  "name": "idleosman",
+  "version": "2.0.0",
   "description": "",
   "main": "index.js",
   "engines": {
@@ -11,10 +11,10 @@
     "start": "node index.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "osman",
   "license": "ISC",
   "dependencies": {
     "mineflayer": "^3.0.0",
-    "mineflayer-cmd": "^1.1.3"
+    "mineflayer-pathfinder": "^1.6.0"
   }
 }
