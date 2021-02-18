@@ -122,24 +122,23 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
 
             }
         }
-        if (bot.isSleeping)
-            return
-
-        if (bot.states.lastTime < 0) {
-            bot.states.lastTime = bot.time.age;
-        } else {
-            let interval = (data.move_for_seconds_min + Math.random() * (data.move_for_seconds_max - data.move_for_seconds_min)) * bot.time.tps;
-            if (bot.time.age - bot.states.lastTime > interval) {
-                if (!bot.states.moving) {
-                    let yaw = (Math.random() - 0.5) * Math.PI;
-                    let pitch = (Math.random() - 0.5) * Math.PI;
-                    bot.look(yaw, pitch, false);
-
-                    bot.states.lastAction = actions[~~(Math.random() * actions.length)];
-                }
-                bot.states.moving = !bot.states.moving;
-                bot.setControlState(bot.states.lastAction, bot.states.moving);
+        if (!bot.isSleeping) {
+            if (bot.states.lastTime < 0) {
                 bot.states.lastTime = bot.time.age;
+            } else {
+                let interval = (data.move_for_seconds_min + Math.random() * (data.move_for_seconds_max - data.move_for_seconds_min)) * bot.time.tps;
+                if (bot.time.age - bot.states.lastTime > interval) {
+                    if (!bot.states.moving) {
+                        let yaw = (Math.random() - 0.5) * Math.PI;
+                        let pitch = (Math.random() - 0.5) * Math.PI;
+                        bot.look(yaw, pitch, false);
+
+                        bot.states.lastAction = actions[~~(Math.random() * actions.length)];
+                    }
+                    bot.states.moving = !bot.states.moving;
+                    bot.setControlState(bot.states.lastAction, bot.states.moving);
+                    bot.states.lastTime = bot.time.age;
+                }
             }
         }
 
