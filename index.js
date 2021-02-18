@@ -90,7 +90,7 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
                     bot.states.lastAction = actions[Math.floor(Math.random() * actions.length)];
                     bot.setControlState(bot.states.lastAction, true);
                     bot.states.moving = true;
-                    //bot.activateItem();
+                    bot.activateItem();
                 }
                 bot.states.lasttime = bot.time.age;
             }
