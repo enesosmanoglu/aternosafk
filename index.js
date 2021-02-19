@@ -3,32 +3,32 @@ const initMcData = require('minecraft-data');
 const pathfinder = require('mineflayer-pathfinder').pathfinder;
 const Movements = require('mineflayer-pathfinder').Movements;
 const { GoalNear, GoalGetToBlock } = require('mineflayer-pathfinder').goals;
-const data = require('./config');
+const config = require('./config');
 
 const actions = ['forward', 'back', 'left', 'right'];
 const bedTypes = ['white_bed', 'orange_bed', 'magenta_bed', 'light_blue_bed', 'yellow_bed', 'lime_bed', 'pink_bed', 'gray_bed', 'light_gray_bed', 'cyan_bed', 'purple_bed', 'blue_bed', 'brown_bed', 'green_bed', 'red_bed', 'black_bed'];
 
-if (typeof data.hosts === "string") {
+if (typeof config.hosts === "string") {
     try {
-        data.hosts = JSON.parse(data.hosts)
+        config.hosts = JSON.parse(config.hosts)
     } catch (error) {
-        if (data.hosts.includes(',')) {
+        if (config.hosts.includes(',')) {
             let hosts = []
-            data.hosts.split(',').forEach(host => {
+            config.hosts.split(',').forEach(host => {
                 hosts.push(host.trim())
             });
-            data.hosts = hosts;
+            config.hosts = hosts;
         } else {
-            data.hosts = [data.hosts]
+            config.hosts = [config.hosts]
         }
     }
 }
 
-if (!data.hosts.length)
+if (!config.hosts.length)
     return console.error("Couldn't found host(s) to connect. Please add host(s) to config!")
 
-for (let i = 0; i < data.hosts.length; i++) {
-    let host = data.hosts[i];
+for (let i = 0; i < config.hosts.length; i++) {
+    let host = config.hosts[i];
     if (!host.includes('.')) {
         host += ".aternos.me"
     }
@@ -41,8 +41,8 @@ for (let i = 0; i < data.hosts.length; i++) {
     }
 }
 
-function createBot(host = data.hosts[0], port = 25565, options = { host, port, username: data.username, hideErrors: false }, bot = mineflayer.createBot(options)) {
-    bot.config = Object.assign({}, data);
+function createBot(host = config.hosts[0], port = 25565, options = { host, port, username: config.username, hideErrors: false }, bot = mineflayer.createBot(options)) {
+    bot.config = Object.assign({}, config);
     bot.loadPlugin(pathfinder);
     bot.movement = {};
     bot.options = options;
@@ -95,9 +95,83 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
         }
     })
 
+    let bedBlocks = [];
+    let bedBlock;
+    function goToBed(i = 0) {
+        bot.lasti = i;
+        bedBlock = bedBlocks[i];
+        bot.movement.moveNear(bedBlock, 2);
+    }
+    const goal_reached = async () => {
+        try {
+            await bot.sleep(bedBlock);
+        } catch (error) {
+            bot.log(error.message);
+            if (error.message.includes('Server rejected transaction'))
+                return bot.reconnect();
+            if (bot.lasti != bedBlocks.length - 1)
+                setTimeout(() => {
+                    goToBed(++bot.lasti);
+                }, 2000);
+        }
+    };
+    bot.on('goal_reached', goal_reached)
+
+    bot.findBedsAndSleep = () => {
+        bedBlocks = bot.findBlocks({
+            matching: bedTypes.map(bedName => bot.data.blocksByName[bedName].id),
+            count: 10,
+        }).map(vec3 => bot.blockAt(vec3));
+
+        goToBed();
+    }
+
     bot.on('time', function () {
         if (!bot.states.connected)
             return;
+
+        bot.onlinePlayers = Object.keys(bot.players).filter(u => u != bot.username);
+
+        if (bot.changeBefore.doDaylightCycle != bot.time.doDaylightCycle) {
+            bot.log('doDaylightCircle changed to', bot.time.doDaylightCycle)
+
+            if (!bot.time.doDaylightCycle) {
+                if (bot.config.auto_night_skip) {
+                    bot.changeBefore.auto_night_skip = bot.config.auto_night_skip;
+                    bot.config.auto_night_skip = false;
+                    bot.log("Auto night skip deactivated!")
+                }
+                if (bot.config.auto_sleep) {
+                    bot.changeBefore.auto_sleep = bot.config.auto_sleep;
+                    bot.config.auto_sleep = false;
+                    bot.log("Auto sleep deactivated!")
+                }
+            } else {
+                if (bot.changeBefore.auto_night_skip) {
+                    bot.config.auto_night_skip = true;
+                    bot.log("Auto night skip activated!")
+                }
+                if (bot.changeBefore.auto_sleep) {
+                    bot.config.auto_sleep = true;
+                    bot.log("Auto sleep activated!")
+                }
+            }
+
+            bot.changeBefore.doDaylightCycle = bot.time.doDaylightCycle;
+        }
+
+        // Auto stop time when there is no players in-game
+        if (bot.config.auto_stop_time) {
+            if (!bot.onlinePlayers.length && bot.time.doDaylightCycle) {
+                // freeze time
+                bot.log('There is no players left. Freezing time...')
+                bot.chat('/gameRule doDaylightCycle false');
+            }
+            else if (bot.onlinePlayers.length && !bot.time.doDaylightCycle) {
+                bot.log('There are players online. Time is advancing.')
+                bot.chat('/gameRule doDaylightCycle true');
+            }
+        }
 
         // Adding tps to bot time & removing bigInts
         delete bot.time.bigAge;
@@ -109,32 +183,7 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
             if (bot.config.auto_night_skip) {
                 bot.chat('/time add 11000');
             } else if (bot.config.auto_sleep) {
-                let bedBlocks = bot.findBlocks({
-                    matching: bedTypes.map(bedName => bot.data.blocksByName[bedName].id),
-                    count: 10,
-                }).map(vec3 => bot.blockAt(vec3))
-
-                goToBed();
-                function goToBed(i = 0) {
-                    const bedBlock = bedBlocks[i];
-                    bot.movement.moveNear(bedBlock, 2);
-                    const goal_reached = async () => {
-                        try {
-                            await bot.sleep(bedBlock);
-                        } catch (error) {
-                            bot.log(error.message);
-                            if (error.message.includes('Server rejected transaction'))
-                                return bot.reconnect();
-                            if (i != bedBlocks.length - 1)
-                                setTimeout(() => {
-                                    goToBed(++i);
-                                }, 2000);
-                        }
-                        bot.removeListener('goal_reached', goal_reached);
-                    };
-                    bot.on('goal_reached', goal_reached)
-                }
-
+                bot.findBedsAndSleep();
             }
         }
         if (!bot.isSleeping) {
@@ -161,9 +210,14 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
     });
 
     bot.on('spawn', function () {
-        bot.chat('/setidletimeout 0')
+        bot.chat('/setidletimeout 0');
         if (bot.config.auto_creative_mode)
-            bot.chat('/gamemode creative')
+            bot.chat('/gamemode creative');
+
+        bot.onlinePlayers = Object.keys(bot.players).filter(u => u != bot.username);
+        bot.log("Online Players", bot.onlinePlayers);
+
+        bot.changeBefore = { doDaylightCycle: bot.time.doDaylightCycle };
 
         bot.movement.default = new Movements(bot, bot.data);
         bot.movement.moveNear = (x, y, z, range = 1) => {
@@ -194,6 +248,13 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
         bot.log('[SPAWN]');
         bot.states.connected = true;
     });
+
+    bot.on('playerJoined', player => {
+        bot.log(player.username, "joined the game")
+    })
+    bot.on('playerLeft', player => {
+        bot.log(player.username, "left the game")
+    })
 
     bot.on('death', function () {
         bot.log('[DEATH]');
