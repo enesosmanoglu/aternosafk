@@ -73,9 +73,12 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
         if (message == '!autosleep') {
             bot.config.auto_sleep = !bot.config.auto_sleep;
             if (bot.config.auto_sleep)
-                bot.chat('Auto sleeping is activated :)')
+                bot.chat('Auto sleeping is activated :)');
             else
-                bot.chat('Auto sleeping is deactivated :(')
+                bot.chat('Auto sleeping is deactivated :(');
+        }
+        if (message == '!time') {
+            bot.chat(bot.time.timeOfDay);
         }
     })
 
