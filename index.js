@@ -1,29 +1,12 @@
 const mineflayer = require('mineflayer');
 const initMcData = require('minecraft-data');
-const pathfinder = require('mineflayer-pathfinder').pathfinder
-const Movements = require('mineflayer-pathfinder').Movements
-const { GoalNear, GoalGetToBlock } = require('mineflayer-pathfinder').goals
-let data = require('./config');
+const pathfinder = require('mineflayer-pathfinder').pathfinder;
+const Movements = require('mineflayer-pathfinder').Movements;
+const { GoalNear, GoalGetToBlock } = require('mineflayer-pathfinder').goals;
+const data = require('./config');
 
-let actions = ['forward', 'back', 'left', 'right'];
-let bedTypes = [
-    'white_bed',
-    'orange_bed',
-    'magenta_bed',
-    'light_blue_bed',
-    'yellow_bed',
-    'lime_bed',
-    'pink_bed',
-    'gray_bed',
-    'light_gray_bed',
-    'cyan_bed',
-    'purple_bed',
-    'blue_bed',
-    'brown_bed',
-    'green_bed',
-    'red_bed',
-    'black_bed',
-];
+const actions = ['forward', 'back', 'left', 'right'];
+const bedTypes = ['white_bed', 'orange_bed', 'magenta_bed', 'light_blue_bed', 'yellow_bed', 'lime_bed', 'pink_bed', 'gray_bed', 'light_gray_bed', 'cyan_bed', 'purple_bed', 'blue_bed', 'brown_bed', 'green_bed', 'red_bed', 'black_bed'];
 
 if (typeof data.hosts === "string") {
     try {
@@ -59,6 +42,7 @@ for (let i = 0; i < data.hosts.length; i++) {
 }
 
 function createBot(host = data.hosts[0], port = 25565, options = { host, port, username: data.username, hideErrors: false }, bot = mineflayer.createBot(options)) {
+    bot.config = Object.assign({}, data);
     bot.loadPlugin(pathfinder);
     bot.movement = {};
     bot.options = options;
@@ -66,8 +50,8 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
     bot.reconnect = () => {
         bot.quit();
         bot.end();
-        bot.log(`Reconnecting in ${data.reconnect_wait_seconds} secs.`);
-        setTimeout(() => createBot(host, port, options), data.reconnect_wait_seconds * 1000);
+        bot.log(`Reconnecting in ${bot.config.reconnect_wait_seconds} secs.`);
+        setTimeout(() => createBot(host, port, options), bot.config.reconnect_wait_seconds * 1000);
     }
     bot.states = {
         lastTime: -1,
@@ -87,8 +71,8 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
             return;
 
         if (message == '!autosleep') {
-            data.auto_sleep = !data.auto_sleep;
-            if (data.auto_sleep)
+            bot.config.auto_sleep = !bot.config.auto_sleep;
+            if (bot.config.auto_sleep)
                 bot.chat('Auto sleeping is activated :)')
             else
                 bot.chat('Auto sleeping is deactivated :(')
@@ -106,9 +90,9 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
         //console.log(JSON.stringify(bot.time));
 
         if (bot.time.timeOfDay >= 13000 && !bot.isSleeping) {
-            if (data.auto_night_skip) {
+            if (bot.config.auto_night_skip) {
                 bot.chat('/time add 11000');
-            } else if (data.auto_sleep) {
+            } else if (bot.config.auto_sleep) {
                 let bedBlocks = bot.findBlocks({
                     matching: bedTypes.map(bedName => bot.data.blocksByName[bedName].id),
                     count: 10,
@@ -141,7 +125,7 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
             if (bot.states.lastTime < 0) {
                 bot.states.lastTime = bot.time.age;
             } else {
-                let interval = (data.move_for_seconds_min + Math.random() * (data.move_for_seconds_max - data.move_for_seconds_min)) * bot.time.tps;
+                let interval = (bot.config.move_for_seconds_min + Math.random() * (bot.config.move_for_seconds_max - bot.config.move_for_seconds_min)) * bot.time.tps;
                 if (bot.time.age - bot.states.lastTime > interval) {
                     if (!bot.states.moving) {
                         let yaw = (Math.random() - 0.5) * Math.PI;
@@ -161,6 +145,9 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
     });
 
     bot.on('spawn', function () {
+        if (bot.config.auto_creative_mode)
+            bot.chat('/gamemode creative')
+
         bot.movement.default = new Movements(bot, bot.data);
         bot.movement.moveNear = (x, y, z, range = 1) => {
             try {

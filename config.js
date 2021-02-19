@@ -6,6 +6,7 @@ let env = {
     auto_sleep: true,
     move_for_seconds_min: 2,
     move_for_seconds_max: 7,
+    auto_creative_mode: true,
 }
 
 for (let key in process.env) {
