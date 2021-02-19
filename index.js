@@ -82,6 +82,19 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
         //bot.chat("hello");
     });
 
+    bot.on('chat', function (username, message) {
+        if (username == bot.username)
+            return;
+
+        if (message == '!autosleep') {
+            data.auto_sleep = !data.auto_sleep;
+            if (data.auto_sleep)
+                bot.chat('Auto sleeping is activated :)')
+            else
+                bot.chat('Auto sleeping is deactivated :(')
+        }
+    })
+
     bot.on('time', function () {
         if (!bot.states.connected)
             return;
@@ -106,7 +119,6 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
                     const bedBlock = bedBlocks[i];
                     bot.movement.moveNear(bedBlock, 2);
                     const goal_reached = async () => {
-                        bot.removeListener('goal_reached', goal_reached);
                         try {
                             await bot.sleep(bedBlock);
                         } catch (error) {
@@ -114,8 +126,11 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
                             if (error.message.includes('Server rejected transaction'))
                                 return bot.reconnect();
                             if (i != bedBlocks.length - 1)
-                                goToBed(++i);
+                                setTimeout(() => {
+                                    goToBed(++i);
+                                }, 2000);
                         }
+                        bot.removeListener('goal_reached', goal_reached);
                     };
                     bot.on('goal_reached', goal_reached)
                 }
