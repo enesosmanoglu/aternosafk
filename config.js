@@ -1,6 +1,7 @@
 let env = {
     hosts: [],
     username: "idleosman",
+    prefix: '!',
     reconnect_wait_seconds: 10,
     auto_night_skip: false,
     auto_sleep: true,

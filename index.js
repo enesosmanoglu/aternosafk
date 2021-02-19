@@ -70,15 +70,28 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
         if (username == bot.username)
             return;
 
-        if (message == '!autosleep') {
+        if (!message.startsWith(bot.config.prefix))
+            return;
+
+        let cmd = message.slice(bot.config.prefix.length);
+
+        if (cmd === "time") {
+            bot.chat(bot.time.timeOfDay);
+        } else if (cmd === "autosleep") {
             bot.config.auto_sleep = !bot.config.auto_sleep;
             if (bot.config.auto_sleep)
                 bot.chat('Auto sleeping is activated :)');
             else
                 bot.chat('Auto sleeping is deactivated :(');
-        }
-        if (message == '!time') {
-            bot.chat(bot.time.timeOfDay);
+        } else if (cmd === "autonightskip") {
+            bot.config.auto_night_skip = !bot.config.auto_night_skip;
+            if (bot.config.auto_night_skip)
+                bot.chat('Auto night skipping is activated :)');
+            else
+                bot.chat('Auto night skipping is deactivated :(');
+        } else if (cmd.startsWith("prefix")) {
+            bot.config.prefix = cmd.replace("prefix", "").trim()[0];
+            bot.chat("Prefix changed to `" + bot.config.prefix + "`");
         }
     })
 
