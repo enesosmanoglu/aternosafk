@@ -51,7 +51,7 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
         bot.quit();
         bot.end();
         bot.log(`Reconnecting in ${bot.config.reconnect_wait_seconds} secs.`);
-        setTimeout(() => createBot(host, port, options), bot.config.reconnect_wait_seconds * 1000);
+        setTimeout(() => createBot(host, port), bot.config.reconnect_wait_seconds * 1000);
     }
     bot.states = {
         lastTime: -1,
@@ -161,6 +161,7 @@ function createBot(host = data.hosts[0], port = 25565, options = { host, port, u
     });
 
     bot.on('spawn', function () {
+        bot.chat('/setidletimeout 0')
         if (bot.config.auto_creative_mode)
             bot.chat('/gamemode creative')
 
