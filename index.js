@@ -42,6 +42,10 @@ for (let i = 0; i < config.hosts.length; i++) {
 }
 
 function createBot(host = config.hosts[0], port = 25565, options = { host, port, username: config.username, hideErrors: false }, bot = mineflayer.createBot(options)) {
+    setTimeout(() => {
+        bot.log("Stopping bot after too long running.")
+        bot.reconnect();
+    }, 30 * 60 * 1000);
     bot.config = Object.assign({}, config);
     bot.loadPlugin(pathfinder);
     bot.movement = {};
@@ -50,7 +54,7 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
     bot.reconnect = () => {
         bot.quit();
         bot.end();
-        bot.log(`Reconnecting in ${bot.config.reconnect_wait_seconds} secs.`);
+        bot.log("Reconnecting in", bot.config.reconnect_wait_seconds, bot.config.reconnect_wait_seconds < 60 ? "seconds." : "minutes.");
         setTimeout(() => createBot(host, port), bot.config.reconnect_wait_seconds * 1000);
     }
     bot.states = {
@@ -276,6 +280,20 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
             bot.log("Server not found! Be sure that you typed correctly.");
             if (reason.includes('.aternos.me'))
                 bot.log("https://aternos.org/server/")
+        } else if (reason.includes("This server is currently waiting in queue")) {
+            let waitingTimeText = reason.split("Estimated waiting time is §aca. ")[1].split('&8.')[0];
+            let waitingTimeSeconds = parseInt(waitingTimeText.match(/\d/g).join(''));
+            if (waitingTimeText.includes("minute")) {
+                waitingTimeSeconds *= 60;
+            }
+            bot.config.reconnect_wait_seconds = ~~(waitingTimeSeconds / 2);
+
+            bot.log("This server is currently waiting in queue.");
+            bot.log("Estimated waiting time is ca.", waitingTimeText);
+            if (reason.includes('.aternos.me')) {
+                bot.log("Do not forget to confirm server :)")
+                bot.log("https://aternos.org/server/")
+            }
         } else {
             bot.log("[KICKED]", reason);
             bot.log("[WAS LOGIN BEFORE KICKING?]", loggedIn);
