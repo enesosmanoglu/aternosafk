@@ -52,8 +52,8 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
     bot.options = options;
     bot.log = function () { console.log(`[${host}:${port}]`, ...Object.values(arguments)); }
     bot.reconnect = () => {
-        bot.quit();
-        bot.end();
+        try { bot.quit(); } catch (err) { }
+        try { bot.end(); } catch (err) { }
         if (bot.config.reconnect_wait_seconds < 60) {
             bot.log("Reconnecting in", bot.config.reconnect_wait_seconds, "seconds.");
         } else {
@@ -285,7 +285,7 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
             if (reason.includes('.aternos.me'))
                 bot.log("https://aternos.org/server/")
         } else if (reason.includes("This server is currently waiting in queue")) {
-            let waitingTimeText = reason.split("Estimated waiting time is §aca. ")[1].split('&8.')[0];
+            let waitingTimeText = reason.split("Estimated waiting time is §aca. ")[1].split('§8.')[0];
             let waitingTimeSeconds = parseInt(waitingTimeText.match(/\d/g).join(''));
             if (waitingTimeText.includes("minute")) {
                 waitingTimeSeconds *= 60;
