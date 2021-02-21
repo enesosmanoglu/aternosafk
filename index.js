@@ -50,7 +50,7 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
     bot.loadPlugin(pathfinder);
     bot.movement = {};
     bot.options = options;
-    bot.log = function () { console.log(`[${host}:${port}]`, ...Object.values(arguments)); }
+    bot.log = function () { console.log(`[${host.replace(".aternos.me", "")}${port != 25565 ? `:${port}` : ``}]`, ...Object.values(arguments)); }
     bot.reconnect = () => {
         try { bot.quit(); } catch (err) { }
         try { bot.end(); } catch (err) { }
@@ -85,6 +85,8 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
 
         if (cmd === "time") {
             bot.chat(bot.time.timeOfDay);
+        } else if (cmd === "tps") {
+            bot.chat(bot.time.tps);
         } else if (cmd === "autosleep") {
             bot.config.auto_sleep = !bot.config.auto_sleep;
             if (bot.config.auto_sleep)
@@ -142,7 +144,7 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
 
         if (bot.changeBefore.doDaylightCycle != bot.time.doDaylightCycle) {
             bot.log('doDaylightCircle changed to', bot.time.doDaylightCycle)
-
+            /* 
             if (!bot.time.doDaylightCycle) {
                 if (bot.config.auto_night_skip) {
                     bot.changeBefore.auto_night_skip = bot.config.auto_night_skip;
@@ -164,7 +166,7 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
                     bot.log("Auto sleep activated!")
                 }
             }
-
+            */
             bot.changeBefore.doDaylightCycle = bot.time.doDaylightCycle;
         }
 
@@ -172,11 +174,15 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
         if (bot.config.auto_stop_time) {
             if (!bot.onlinePlayers.length && bot.time.doDaylightCycle) {
                 // freeze time
-                bot.log('There is no players left. Freezing time...')
+                bot.log('No online players. Time is freezing.');
+                bot.log('(If these messages are repeating over and over, please add me as an operator!)');
+                bot.log('(/op ' + bot.username + ')');
                 bot.chat('/gameRule doDaylightCycle false');
-            }
-            else if (bot.onlinePlayers.length && !bot.time.doDaylightCycle) {
-                bot.log('There are players online. Time is advancing.')
+            } else if (bot.onlinePlayers.length && !bot.time.doDaylightCycle) {
+                // advance time
+                bot.log('There are online players. Time is advancing.');
+                bot.log('(If these messages are repeating over and over, please add me as an operator!)');
+                bot.log('(/op ' + bot.username + ')');
                 bot.chat('/gameRule doDaylightCycle true');
             }
         }
@@ -277,30 +283,32 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
         }
         bot.log("");
         if (reason.includes("This server is offline")) {
-            bot.log("Server is currently offline. Please start server firstly!");
+            bot.log("Server is currently offline. Please start the server firstly!");
             if (reason.includes('.aternos.me'))
                 bot.log("https://aternos.org/server/")
         } else if (reason.includes("Server not found")) {
             bot.log("Server not found! Be sure that you typed correctly.");
             if (reason.includes('.aternos.me'))
                 bot.log("https://aternos.org/server/")
+        } else if (reason.includes("This server is currently starting")) {
+            bot.log("This server is currently starting.");
         } else if (reason.includes("This server is currently waiting in queue")) {
             let waitingTimeText = reason.split("Estimated waiting time is §aca. ")[1].split('§8.')[0];
             let waitingTimeSeconds = parseInt(waitingTimeText.match(/\d/g).join(''));
             if (waitingTimeText.includes("minute")) {
                 waitingTimeSeconds *= 60;
             }
-            bot.config.reconnect_wait_seconds = ~~(waitingTimeSeconds / 2);
+            bot.config.reconnect_wait_seconds = waitingTimeSeconds;//~~(waitingTimeSeconds / 2);
 
             bot.log("This server is currently waiting in queue.");
-            bot.log("Estimated waiting time is ca.", waitingTimeText);
+            bot.log("Estimated waiting time is ca.", waitingTimeText + ".");
             if (reason.includes('.aternos.me')) {
                 bot.log("Do not forget to confirm server :)")
                 bot.log("https://aternos.org/server/")
             }
         } else {
-            bot.log("[KICKED]", reason);
-            bot.log("[WAS LOGIN BEFORE KICKING?]", loggedIn);
+            bot.log('Kicked from the server!', reason ? `(${reason})` : '')
+            //bot.log("[WAS LOGIN BEFORE KICKING?]", loggedIn);
         }
         bot.log("");
     });

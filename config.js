@@ -2,7 +2,7 @@ let env = {
     hosts: [],
     username: "idleosman",
     prefix: '!',
-    reconnect_wait_seconds: 10,
+    reconnect_wait_seconds: 30,
     auto_night_skip: false,
     auto_sleep: true,
     move_for_seconds_min: 2,
