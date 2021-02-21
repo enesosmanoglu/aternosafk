@@ -44,7 +44,8 @@ for (let i = 0; i < config.hosts.length; i++) {
 function createBot(host = config.hosts[0], port = 25565, options = { host, port, username: config.username, hideErrors: false }, bot = mineflayer.createBot(options)) {
     setTimeout(() => {
         bot.log("Stopping bot after too long running.")
-        bot.reconnect();
+        bot.quit();
+        bot.end();
     }, 30 * 60 * 1000);
     bot.config = Object.assign({}, config);
     bot.loadPlugin(pathfinder);
@@ -70,7 +71,7 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
 
     bot.on('login', function () {
         bot.data = initMcData(bot.version);
-        bot.log(`Logged in with username '${options.username}'`);
+        bot.log(`Logged into the server as '${options.username}'`);
         //bot.chat("hello");
     });
 
@@ -174,16 +175,16 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
         if (bot.config.auto_stop_time) {
             if (!bot.onlinePlayers.length && bot.time.doDaylightCycle) {
                 // freeze time
-                bot.log('No online players. Time is freezing.');
-                bot.log('(If these messages are repeating over and over, please add me as an operator!)');
-                bot.log('(/op ' + bot.username + ')');
                 bot.chat('/gameRule doDaylightCycle false');
+                bot.log('No online players. Time is freezing.');
+                bot.log('(If these messages are repeating over and over, please add "' + bot.username + '" as an operator!)');
+                bot.log('(/op ' + bot.username + ')');
             } else if (bot.onlinePlayers.length && !bot.time.doDaylightCycle) {
                 // advance time
-                bot.log('There are online players. Time is advancing.');
-                bot.log('(If these messages are repeating over and over, please add me as an operator!)');
-                bot.log('(/op ' + bot.username + ')');
                 bot.chat('/gameRule doDaylightCycle true');
+                bot.log('There are online players. Time is advancing.');
+                bot.log('(If these messages are repeating over and over, please add "' + bot.username + '" as an operator!)');
+                bot.log('(/op ' + bot.username + ')');
             }
         }
 
@@ -229,7 +230,10 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
             bot.chat('/gamemode creative');
 
         bot.onlinePlayers = Object.keys(bot.players).filter(u => u != bot.username);
-        bot.log("Online Players", bot.onlinePlayers);
+        if (bot.onlinePlayers.length)
+            bot.log("Online Players:", bot.onlinePlayers);
+        else
+            bot.log("No online players.")
 
         bot.changeBefore = { doDaylightCycle: bot.time.doDaylightCycle };
 
@@ -259,7 +263,7 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
                 //console.log(error.message)
             }
         }
-        bot.log('[SPAWN]');
+        bot.log(bot.username, 'is spawned.');
         bot.states.connected = true;
     });
 
@@ -271,9 +275,13 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
     })
 
     bot.on('death', function () {
-        bot.log('[DEATH]');
+        bot.log(bot.username, 'is died.');
         bot.emit("respawn");
     });
+
+    bot.on('respawn', () => {
+        bot.log(bot.username, 'is respawned.');
+    })
 
     bot.on('kicked', function (reason, loggedIn) {
         try {
@@ -307,7 +315,7 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
                 bot.log("https://aternos.org/server/")
             }
         } else {
-            bot.log('Kicked from the server!', reason ? `(${reason})` : '')
+            bot.log(bot.username, 'is kicked from the server!', reason ? `(${reason})` : '')
             //bot.log("[WAS LOGIN BEFORE KICKING?]", loggedIn);
         }
         bot.log("");
