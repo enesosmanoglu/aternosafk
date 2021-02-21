@@ -54,7 +54,11 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
     bot.reconnect = () => {
         bot.quit();
         bot.end();
-        bot.log("Reconnecting in", bot.config.reconnect_wait_seconds, bot.config.reconnect_wait_seconds < 60 ? "seconds." : "minutes.");
+        if (bot.config.reconnect_wait_seconds < 60) {
+            bot.log("Reconnecting in", bot.config.reconnect_wait_seconds, "seconds.");
+        } else {
+            bot.log("Reconnecting in", bot.config.reconnect_wait_seconds / 60, "minutes.");
+        }
         setTimeout(() => createBot(host, port), bot.config.reconnect_wait_seconds * 1000);
     }
     bot.states = {
