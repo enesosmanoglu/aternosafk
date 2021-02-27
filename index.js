@@ -52,7 +52,9 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
     bot.movement = {};
     bot.options = options;
     bot.log = function () { console.log(`[${host.replace(".aternos.me", "")}${port != 25565 ? `:${port}` : ``}]`, ...Object.values(arguments)); }
+    bot.reconnectTimeout = null;
     bot.reconnect = () => {
+        clearTimeout(bot.reconnectTimeout);
         try { bot.quit(); } catch (err) { }
         try { bot.end(); } catch (err) { }
         if (bot.config.reconnect_wait_seconds < 60) {
@@ -60,7 +62,7 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
         } else {
             bot.log("Reconnecting in", bot.config.reconnect_wait_seconds / 60, "minutes.");
         }
-        setTimeout(() => createBot(host, port), bot.config.reconnect_wait_seconds * 1000);
+        bot.reconnectTimeout = setTimeout(() => createBot(host, port), bot.config.reconnect_wait_seconds * 1000);
     }
     bot.states = {
         lastTime: -1,
@@ -119,7 +121,7 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
         } catch (error) {
             bot.log(error.message);
             if (error.message.includes('Server rejected transaction'))
-                return bot.reconnect();
+                return bot.end();
             if (bot.lasti != bedBlocks.length - 1)
                 setTimeout(() => {
                     goToBed(++bot.lasti);
@@ -285,39 +287,46 @@ function createBot(host = config.hosts[0], port = 25565, options = { host, port,
 
     bot.on('kicked', function (reason, loggedIn) {
         try {
+            // Aternos reason
             reason = JSON.parse(reason.replace(/\n/g, " ")).text
         } catch (error) {
             //console.log(error)
         }
-        bot.log("");
-        if (reason.includes("This server is offline")) {
-            bot.log("Server is currently offline. Please start the server firstly!");
-            if (reason.includes('.aternos.me'))
-                bot.log("https://aternos.org/server/")
-        } else if (reason.includes("Server not found")) {
-            bot.log("Server not found! Be sure that you typed correctly.");
-            if (reason.includes('.aternos.me'))
-                bot.log("https://aternos.org/server/")
-        } else if (reason.includes("This server is currently starting")) {
-            bot.log("This server is currently starting.");
-        } else if (reason.includes("This server is currently waiting in queue")) {
-            let waitingTimeText = reason.split("Estimated waiting time is §aca. ")[1].split('§8.')[0];
-            let waitingTimeSeconds = parseInt(waitingTimeText.match(/\d/g).join(''));
-            if (waitingTimeText.includes("minute")) {
-                waitingTimeSeconds *= 60;
-            }
-            bot.config.reconnect_wait_seconds = waitingTimeSeconds;//~~(waitingTimeSeconds / 2);
 
-            bot.log("This server is currently waiting in queue.");
-            bot.log("Estimated waiting time is ca.", waitingTimeText + ".");
-            if (reason.includes('.aternos.me')) {
-                bot.log("Do not forget to confirm server :)")
-                bot.log("https://aternos.org/server/")
+        bot.log("");
+        if (reason) {
+            if (reason.includes("This server is offline")) {
+                bot.log("Server is currently offline. Please start the server firstly!");
+                if (reason.includes('.aternos.me'))
+                    bot.log("https://aternos.org/server/")
+            } else if (reason.includes("Server not found")) {
+                bot.log("Server not found! Be sure that you typed correctly.");
+                if (reason.includes('.aternos.me'))
+                    bot.log("https://aternos.org/server/")
+            } else if (reason.includes("This server is currently starting")) {
+                bot.log("This server is currently starting.");
+            } else if (reason.includes("This server is currently waiting in queue")) {
+                let waitingTimeText = reason.split("Estimated waiting time is §aca. ")[1].split('§8.')[0];
+                let waitingTimeSeconds = parseInt(waitingTimeText.match(/\d/g).join(''));
+                if (waitingTimeText.includes("minute")) {
+                    waitingTimeSeconds *= 60;
+                }
+                bot.config.reconnect_wait_seconds = ~~(waitingTimeSeconds / 2);//waitingTimeSeconds;
+
+                bot.log("This server is currently waiting in queue.");
+                bot.log("Estimated waiting time is ca.", waitingTimeText + ".");
+                if (reason.includes('.aternos.me')) {
+                    bot.log("Do not forget to confirm server :)")
+                    bot.log("https://aternos.org/server/")
+                }
+            } else {
+                bot.log(bot.username, 'is kicked from the server!', reason ? `(${reason})` : '')
+                //bot.log("[WAS LOGIN BEFORE KICKING?]", loggedIn);
             }
         } else {
-            bot.log(bot.username, 'is kicked from the server!', reason ? `(${reason})` : '')
-            //bot.log("[WAS LOGIN BEFORE KICKING?]", loggedIn);
+            bot.log(bot.username, 'is kicked from the server!')
         }
+
         bot.log("");
     });
 
